@@ -7,6 +7,7 @@
 #include <mutex>
 
 #include <openexr.h>
+#include "kdu.h"
 
 #include "cxxopts.hpp"
 
@@ -116,6 +117,7 @@ int main(int argc, char *argv[])
             {
                 dif(
                     exr_decoding_choose_default_routines(src_file, part_id, &decoder));
+                decoder.decompress_fn = kdu_decompress;
             }
             dif(exr_decoding_run(src_file, part_id, &decoder));
 

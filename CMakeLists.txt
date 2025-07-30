@@ -1,17 +1,15 @@
 # SPDX-License-Identifier: BSD-3-Clause
+cmake_minimum_required(VERSION 3.24)
 
-project (exrperf)
-
-find_package(Threads REQUIRED)
+project (exrkdu)
 
 set(EXECUTABLE_OUTPUT_PATH "${CMAKE_BINARY_DIR}/bin")
 
 add_subdirectory(ext/openexr)
-add_subdirectory(ext/imath)
-add_executable(exrperf src/main/cpp/main.cpp)
-target_include_directories(exrperf PRIVATE ext/cxxopts)
-target_link_libraries(exrperf OpenEXR::OpenEXR Imath::Imath Threads::Threads)
+add_executable(exrkdu src/main/cpp/main.cpp)
+target_include_directories(exrkdu PRIVATE ext/cxxopts)
+target_link_libraries(exrkdu OpenEXRCore)
 
 if(WIN32 AND (BUILD_SHARED_LIBS OR OPENEXR_BUILD_BOTH_STATIC_SHARED))
-  target_compile_definitions(exrperf PRIVATE OPENEXR_DLL IMATH_DLL)
+  target_compile_definitions(exrkdu PRIVATE OPENEXR_DLL)
 endif()

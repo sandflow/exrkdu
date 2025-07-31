@@ -12,4 +12,8 @@
 extern "C" exr_result_t
 kdu_decompress (exr_decode_pipeline_t* decode);
 
+extern "C" exr_result_t
+kdu_compress (exr_encode_pipeline_t* encode);
+
+
 #endif

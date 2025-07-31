@@ -11,7 +11,7 @@ to decompress and compress OpenEXR images that use the HTJ2K Compression.
 
 _IMPORTANT_: While _kduexr_ is published under an [open-source
 license](./LICENSE.txt), the Kakadu SDK is a commercial library licensed under a
-restrictive license. The _kduc_ license does not extend to the Kakadu SDK and a
+restrictive license. The _kduexr_ license does not extend to the Kakadu SDK and a
 separate license for Kakadu SDK must be obained.
 
 ## Overview

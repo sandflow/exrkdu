@@ -11,6 +11,7 @@
 
 #include "cxxopts.hpp"
 
+#define MAX_CHANNEL_COUNT 32
 
 void dif(exr_result_t r)
 {
@@ -48,21 +49,25 @@ int main(int argc, char *argv[])
     exr_result_t r;
 
     exr_context_initializer_t ctxtinit = EXR_DEFAULT_CONTEXT_INITIALIZER;
+
+    /* source file */
+
     exr_context_t src_file;
     dif(exr_start_read(&src_file, src_fn.c_str(), &ctxtinit));
 
     int partCount;
     dif(exr_get_count(src_file, &partCount));
 
-    size_t decoded_size = 0;
+    /* destination file */
+
 
     for (int part_id = 0; part_id < partCount; part_id++)
     {
-
         exr_storage_t stortype;
         dif(exr_get_storage(src_file, part_id, &stortype));
         if (stortype != EXR_STORAGE_SCANLINE)
         {
+            std::cout << "Only supports scanline files" << std::endl;
             exit(-1);
         }
 
@@ -71,13 +76,26 @@ int main(int argc, char *argv[])
 
         exr_attr_box2i_t dw;
         dif(exr_get_data_window(src_file, part_id, &dw));
-
         int width = dw.max.x - dw.min.x + 1;
         int height = dw.max.y - dw.min.y + 1;
 
-        int32_t pixelstride = 4;
-        int32_t linestride = width * pixelstride;
-        uint8_t *channel_buffer = (uint8_t *)malloc(scansperchunk * linestride);
+        const exr_attr_chlist_t *channels;
+        dif(exr_get_channels (src_file, part_id, &channels));
+
+        /* allocate decoded chunk memory */
+        if (channels->num_channels > MAX_CHANNEL_COUNT) {
+            std::cout << "Max channel count exceeded" << std::endl;
+            exit(-1);
+        }
+
+        uint8_t pixelstride = 0;
+        uint8_t ch_offset[MAX_CHANNEL_COUNT];
+        for (int ch_id = 0; ch_id < channels->num_channels; ++ch_id) {
+            ch_offset[ch_id] = pixelstride;
+            pixelstride += channels->entries[ch_id].pixel_type == EXR_PIXEL_HALF ? 2 : 4;
+        }
+        int32_t linestride = pixelstride * width;
+        uint8_t *baseband_buf = (uint8_t *)malloc(scansperchunk * width * pixelstride);
 
         bool first = true;
         exr_decode_pipeline_t decoder;
@@ -97,8 +115,6 @@ int main(int argc, char *argv[])
             for (int ch_id = 0; ch_id < decoder.channel_count; ++ch_id)
             {
                 const exr_coding_channel_info_t &channel = decoder.channels[ch_id];
-                void *ptr;
-
 
                 if (channel.height == 0)
                 {
@@ -108,7 +124,7 @@ int main(int argc, char *argv[])
                     continue;
                 }
 
-                decoder.channels[ch_id].decode_to_ptr = channel_buffer;
+                decoder.channels[ch_id].decode_to_ptr = baseband_buf + ch_offset[ch_id];
                 decoder.channels[ch_id].user_pixel_stride = pixelstride;
                 decoder.channels[ch_id].user_line_stride = linestride;
             }
@@ -124,7 +140,7 @@ int main(int argc, char *argv[])
             first = false;
         }
         dif(exr_decoding_destroy(src_file, &decoder));
-        free(channel_buffer);
+        free(baseband_buf);
     }
 
     dif(exr_finish(&src_file));

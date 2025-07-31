@@ -320,10 +320,12 @@ void read_header(
         throw std::runtime_error(
             "HTJ2K chunk header missing does not start with magic number.");
 
-    length = header.pull_uint32() + HEADER_SZ;
+    length = header.pull_uint32();
 
     if (length < 2)
         throw std::runtime_error("Error while reading the channel map");
+
+    length += HEADER_SZ;
 
     map.resize(header.pull_uint16());
     for (size_t i = 0; i < map.size(); i++)

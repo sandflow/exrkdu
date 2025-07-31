@@ -182,12 +182,25 @@ kdu_decompress(
     d.start(cs);
 
     std::fill(heights.begin(), heights.end(), height);
-    d.pull_stripe(
-        (kdu_int16 *)decode->unpacked_buffer,
-        heights.data(),
-        sample_offsets.data(),
-        NULL,
-        row_gaps.data());
+
+    if (decode->channels[0].data_type == EXR_PIXEL_HALF)
+    {
+        d.pull_stripe(
+            (kdu_int16 *)decode->unpacked_buffer,
+            heights.data(),
+            sample_offsets.data(),
+            NULL,
+            row_gaps.data());
+    }
+    else
+    {
+        d.pull_stripe(
+            (kdu_int32 *)decode->unpacked_buffer,
+            heights.data(),
+            sample_offsets.data(),
+            NULL,
+            row_gaps.data());
+    }
 
     d.finish();
 
@@ -225,8 +238,8 @@ kdu_compress(exr_encode_pipeline_t *encode)
     siz.set(Scomponents, 0, 0, encode->channel_count);
     siz.set(Sdims, 0, 0, height);
     siz.set(Sdims, 0, 1, width);
-    siz.set(Nprecision, 0, 0, 16);
-    siz.set(Nsigned, 0, 0, true);
+    siz.set(Nprecision, 0, 0, encode->channels[0].data_type == EXR_PIXEL_HALF ? 16 : 32);
+    siz.set(Nsigned, 0, 0, encode->channels[0].data_type != EXR_PIXEL_UINT);
     static_cast<kdu_params &>(siz).finalize();
 
     size_t header_sz = write_header(
@@ -254,21 +267,35 @@ kdu_compress(exr_encode_pipeline_t *encode)
         cod->set(Clevels, 0, 0, 5);
         cod->set(Cycc, 0, 0, isRGB);
 
-        kdu_params *nlt = codestream.access_siz()->access_cluster(NLT_params);
-
-        nlt->set(NLType, 0, 0, NLType_SMAG);
+        if (encode->channels[0].data_type != EXR_PIXEL_UINT)
+        {
+            kdu_params *nlt = codestream.access_siz()->access_cluster(NLT_params);
+            nlt->set(NLType, 0, 0, NLType_SMAG);
+        }
 
         codestream.access_siz()->finalize_all();
 
         kdu_stripe_compressor compressor;
         compressor.start(codestream);
 
-        compressor.push_stripe(
-            (kdu_int16 *)encode->packed_buffer,
-            heights.data(),
-            sample_offsets.data(),
-            NULL,
-            row_gaps.data());
+        if (encode->channels[0].data_type == EXR_PIXEL_HALF)
+        {
+            compressor.push_stripe(
+                (kdu_int16 *)encode->packed_buffer,
+                heights.data(),
+                sample_offsets.data(),
+                NULL,
+                row_gaps.data());
+        }
+        else
+        {
+            compressor.push_stripe(
+                (kdu_int32 *)encode->packed_buffer,
+                heights.data(),
+                sample_offsets.data(),
+                NULL,
+                row_gaps.data());
+        }
 
         compressor.finish();
 

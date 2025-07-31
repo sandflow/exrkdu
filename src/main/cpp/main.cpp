@@ -12,6 +12,7 @@
 #include "cxxopts.hpp"
 
 #define MAX_CHANNEL_COUNT 32
+#define MAX_PART_COUNT 128
 
 void dif(exr_result_t r)
 {
@@ -22,40 +23,29 @@ void dif(exr_result_t r)
     }
 }
 
-int64_t write_to_null(
-    exr_const_context_t ctxt,
-    void *userdata,
-    const void *buffer,
-    uint64_t sz,
-    uint64_t offset,
-    exr_stream_error_func_ptr_t error_cb)
-{
-    return sz;
-}
-
 int main(int argc, char *argv[])
 {
     cxxopts::Options options(
         "exrkdu", "Demonstrates how to use KDU SDK with the OpenEXR C API");
 
     options.add_options()(
-        "file", "Input image", cxxopts::value<std::string>());
+        "ipath", "Input image path", cxxopts::value<std::string>())(
+        "epath", "Encoded image path", cxxopts::value<std::string>());
 
-    options.parse_positional({"file"});
+    options.parse_positional({"ipath", "epath"});
 
     options.show_positional_help();
 
     auto args = options.parse(argc, argv);
 
-    if (args.count("file") != 1)
+    if (args.count("ipath") != 1 || args.count("epath") != 1)
     {
         std::cout << options.help() << std::endl;
         exit(-1);
     }
 
-    auto &src_fn = args["file"].as<std::string>();
-
-    /* load src image */
+    auto &src_fn = args["ipath"].as<std::string>();
+    auto &enc_fn = args["epath"].as<std::string>();
 
     exr_result_t r;
 
@@ -67,12 +57,16 @@ int main(int argc, char *argv[])
     int partCount;
     dif(exr_get_count(src_file, &partCount));
 
-    /* encoding context */
+    if (partCount > MAX_PART_COUNT)
+    {
+        std::cout << "Max part count exceeded" << std::endl;
+        exit(-1);
+    }
+
+    /* encoded file */
 
     exr_context_t enc_file;
-    exr_context_initializer_t ctxtinit = EXR_DEFAULT_CONTEXT_INITIALIZER;
-    ctxtinit.write_fn = write_to_null;
-    dif(exr_start_write(&enc_file, "", EXR_WRITE_FILE_DIRECTLY, &ctxtinit));
+    dif(exr_start_write(&enc_file, enc_fn.c_str(), EXR_WRITE_FILE_DIRECTLY, NULL));
 
     /* copy parts to the output file */
 
@@ -103,6 +97,12 @@ int main(int argc, char *argv[])
     }
     dif(exr_write_header(enc_file));
 
+    /* baseband buffers */
+
+    uint8_t *baseband_bufs[MAX_PART_COUNT] = {NULL};
+
+    /* generated encoded file */
+
     for (int part_id = 0; part_id < partCount; part_id++)
     {
         exr_attr_box2i_t dw;
@@ -127,7 +127,7 @@ int main(int argc, char *argv[])
             pixelstride += channels->entries[ch_id].pixel_type == EXR_PIXEL_HALF ? 2 : 4;
         }
         int32_t linestride = pixelstride * width;
-        uint8_t *baseband_buf = (uint8_t *)malloc(height * width * pixelstride);
+        baseband_bufs[part_id] = (uint8_t *)malloc(height * width * pixelstride);
 
         /* decode */
 
@@ -136,7 +136,7 @@ int main(int argc, char *argv[])
         exr_chunk_info_t dec_chunk;
         int32_t scansperchunk;
         dif(exr_get_scanlines_per_chunk(src_file, part_id, &scansperchunk));
-        uint8_t *chunk_buf = baseband_buf;
+        uint8_t *chunk_buf = baseband_bufs[part_id];
         for (int y = dw.min.y; y <= dw.max.y; y += scansperchunk)
         {
             dif(exr_read_scanline_chunk_info(src_file, part_id, y, &dec_chunk));
@@ -185,7 +185,7 @@ int main(int argc, char *argv[])
         exr_encode_pipeline_t encoder;
         exr_chunk_info_t enc_chunk;
         dif(exr_get_scanlines_per_chunk(enc_file, part_id, &scansperchunk));
-        chunk_buf = baseband_buf;
+        chunk_buf = baseband_bufs[part_id];
         for (int y = dw.min.y; y <= dw.max.y; y += scansperchunk)
         {
             dif(exr_write_scanline_chunk_info(enc_file, part_id, y, &enc_chunk));
@@ -230,12 +230,114 @@ int main(int argc, char *argv[])
             chunk_buf += linestride * scansperchunk;
         }
         free(encoder.compressed_buffer);
-        dif(exr_encoding_destroy(src_file, &encoder));
-        free(baseband_buf);
+        dif(exr_encoding_destroy(enc_file, &encoder));
     }
 
     dif(exr_finish(&src_file));
     dif(exr_finish(&enc_file));
+
+    /* read and compare with baseband */
+
+    exr_context_t dec_file;
+    dif(exr_start_read(&dec_file, enc_fn.c_str(), NULL));
+
+    for (int part_id = 0; part_id < partCount; part_id++)
+    {
+        exr_attr_box2i_t dw;
+        dif(exr_get_data_window(dec_file, part_id, &dw));
+        int width = dw.max.x - dw.min.x + 1;
+        int height = dw.max.y - dw.min.y + 1;
+
+        /* allocate decoded image buffer */
+
+        const exr_attr_chlist_t *channels;
+        dif(exr_get_channels(dec_file, part_id, &channels));
+        uint8_t pixelstride = 0;
+        if (channels->num_channels > MAX_CHANNEL_COUNT)
+        {
+            std::cout << "Max channel count exceeded" << std::endl;
+            exit(-1);
+        }
+        uint8_t ch_offset[MAX_CHANNEL_COUNT];
+        for (int ch_id = 0; ch_id < channels->num_channels; ++ch_id)
+        {
+            ch_offset[ch_id] = pixelstride;
+            pixelstride += channels->entries[ch_id].pixel_type == EXR_PIXEL_HALF ? 2 : 4;
+        }
+        int32_t linestride = pixelstride * width;
+        uint8_t*  dec_buffer = (uint8_t *)malloc(height * width * pixelstride);
+
+        /* decode */
+
+        bool first = true;
+        exr_decode_pipeline_t decoder;
+        exr_chunk_info_t dec_chunk;
+        int32_t scansperchunk;
+        dif(exr_get_scanlines_per_chunk(dec_file, part_id, &scansperchunk));
+        uint8_t *chunk_buf = dec_buffer;
+        for (int y = dw.min.y; y <= dw.max.y; y += scansperchunk)
+        {
+            dif(exr_read_scanline_chunk_info(dec_file, part_id, y, &dec_chunk));
+
+            if (first)
+            {
+                dif(exr_decoding_initialize(dec_file, part_id, &dec_chunk, &decoder));
+            }
+            else
+            {
+                dif(exr_decoding_update(dec_file, part_id, &dec_chunk, &decoder));
+            }
+
+            for (int ch_id = 0; ch_id < decoder.channel_count; ++ch_id)
+            {
+                const exr_coding_channel_info_t &channel = decoder.channels[ch_id];
+
+                if (channel.height == 0)
+                {
+                    decoder.channels[ch_id].decode_to_ptr = NULL;
+                    decoder.channels[ch_id].user_pixel_stride = 0;
+                    decoder.channels[ch_id].user_line_stride = 0;
+                    continue;
+                }
+
+                decoder.channels[ch_id].decode_to_ptr = chunk_buf + ch_offset[ch_id];
+                decoder.channels[ch_id].user_pixel_stride = pixelstride;
+                decoder.channels[ch_id].user_line_stride = linestride;
+            }
+
+            if (first)
+            {
+                dif(
+                    exr_decoding_choose_default_routines(dec_file, part_id, &decoder));
+                decoder.decompress_fn = kdu_decompress;
+            }
+            dif(exr_decoding_run(dec_file, part_id, &decoder));
+
+            first = false;
+            chunk_buf += linestride * scansperchunk;
+        }
+        dif(exr_decoding_destroy(dec_file, &decoder));
+
+        /* compare with baseband */
+
+        if (memcmp(baseband_bufs[part_id], dec_buffer, height * width * pixelstride)) {
+            std::cout << "Decoded image does not match the source image" << std::endl;
+            exit(-1);
+        }
+
+        free(dec_buffer);
+    }
+
+    dif(exr_finish(&dec_file));
+
+    /* free baseband buffers */
+
+    for (int part_id = 0; part_id < partCount; part_id++)
+    {
+        free(baseband_bufs[part_id]);
+    }
+
+    std::cout << "Success" << std::endl;
 
     return 0;
 }

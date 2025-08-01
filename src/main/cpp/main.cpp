@@ -30,7 +30,8 @@ int main(int argc, char *argv[])
 
     options.add_options()(
         "ipath", "Input image path", cxxopts::value<std::string>())(
-        "epath", "Encoded image path", cxxopts::value<std::string>());
+        "epath", "Encoded image path", cxxopts::value<std::string>())(
+        "d,default", "Use the default HTJ2K decoder", cxxopts::value<bool>()->default_value("false"));
 
     options.parse_positional({"ipath", "epath"});
 
@@ -48,6 +49,10 @@ int main(int argc, char *argv[])
     auto &enc_fn = args["epath"].as<std::string>();
 
     exr_result_t r;
+
+    /* decode mode */
+
+    bool use_default_htj2k_decoder = args["default"].as<bool>();
 
     /* source file */
 
@@ -265,7 +270,7 @@ int main(int argc, char *argv[])
             pixelstride += channels->entries[ch_id].pixel_type == EXR_PIXEL_HALF ? 2 : 4;
         }
         int32_t linestride = pixelstride * width;
-        uint8_t*  dec_buffer = (uint8_t *)malloc(height * width * pixelstride);
+        uint8_t *dec_buffer = (uint8_t *)malloc(height * width * pixelstride);
 
         /* decode */
 
@@ -309,7 +314,10 @@ int main(int argc, char *argv[])
             {
                 dif(
                     exr_decoding_choose_default_routines(dec_file, part_id, &decoder));
-                decoder.decompress_fn = kdu_decompress;
+                if (!use_default_htj2k_decoder)
+                {
+                    decoder.decompress_fn = kdu_decompress;
+                }
             }
             dif(exr_decoding_run(dec_file, part_id, &decoder));
 
@@ -320,7 +328,8 @@ int main(int argc, char *argv[])
 
         /* compare with baseband */
 
-        if (memcmp(baseband_bufs[part_id], dec_buffer, height * width * pixelstride)) {
+        if (memcmp(baseband_bufs[part_id], dec_buffer, height * width * pixelstride))
+        {
             std::cout << "Decoded image does not match the source image" << std::endl;
             exit(-1);
         }

@@ -84,11 +84,11 @@ Navigate to bin directory
 
     cd ~/software/exrkdu/build
 
-Run exrkdu - encode with Kakadu and decode with Kakadu)
+Run exrkdu - encode test image [Tree.exr](https://openexr.com/en/latest/test_images/ScanLines/Tree.html) with Kakadu HTJ2K and decode with Kakadu HTJ2K
 
     ./exrkdu --ipath ~/Downloads/Tree.exr --epath ~/Downloads/Tree.kdu.exr
 
-Run exrkdu - encode with Kakadu and decode with default decoder (OpenJPH)
+Run exrkdu - encode test image [Tree.exr](https://openexr.com/en/latest/test_images/ScanLines/Tree.html) with Kakadu HTJ2K and decode with default HTJ2K decoder (OpenJPH)
 
     ./exrkdu --ipath ~/Downloads/Tree.exr --epath ~/Downloads/Tree.kdu.exr -d
 

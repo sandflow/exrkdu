@@ -34,11 +34,12 @@ separate license for Kakadu SDK must be obained.
 
 ## Quick start
 
-    git clone https://github.com/sandflow/exrkdu.git
+    git clone --recurse-submodules https://github.com/sandflow/exrkdu.git
     cd exrkdu
     mkdir build
     cd build
-    cmake -DKDU_LIBRARY=<path to Kakadu SDK libkdu_axxR.so> \
-          -DKDU_INCLUDE_DIR=<path to Kakadu SDK include headers> \
+    cmake -DKDU_LIBRARY=<path to Kakadu SDK library, e.g. libkdu_axxR.so> \
+          -DKDU_AUX_LIBRARY=<path to Kakadu SDK auxilary library, e.g. libkdu_axxR.so> \
+          -DKDU_INCLUDE_DIR=<path to Kakadu SDK include headers, e.g. managed/all_includes> \
           ..
     ./bin/exrkdu SPARKS_ACES_00000.exr SPARKS_ACES_00000.j2k.exr

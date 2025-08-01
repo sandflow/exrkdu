@@ -34,6 +34,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <cassert>
 #include <algorithm>
 #include <cctype>
+#include <stdexcept>
 
 const std::string RED_CH_FULLNAME = "red";
 const std::string GREEN_CH_FULLNAME = "green";

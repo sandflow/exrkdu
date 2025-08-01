@@ -43,3 +43,52 @@ separate license for Kakadu SDK must be obained.
           -DKDU_INCLUDE_DIR=<path to Kakadu SDK include headers, e.g. managed/all_includes> \
           ..
     ./bin/exrkdu SPARKS_ACES_00000.exr SPARKS_ACES_00000.j2k.exr
+
+## example commands that build and run `exrkdu` on MacOS
+
+There are different ways to configure dynamic libraries and locations on MacOS, here is one example:
+
+Build Kakadu SDK like normal, i.e.
+
+    cd ~/software/kdu-sdk/v8_5-01908E/make
+    make -f Makefile-Mac-arm-64-gcc all_but_jni
+
+Copy  libkdu_axxR.so and libkdu_vxxR.so into ~/lib
+
+    cd ~
+    mkdir lib
+    cd ~/software/kdu-sdk/v8_5-01908E/lib/Mac-arm-64-gcc
+    cp *.so ~/lib
+
+Add the following lines to the session profile file `~/.zprofile`, you can edit that file by typing `nano ~/.zprofile`
+
+    DYLD_LIBRARY_PATH=~/lib
+    export DYLD_LIBRARY_PATH
+
+Navigate to build directory:
+
+    cd ~/software/exrkdu/build
+
+Run cmake to configure OpenEXR with Kakadu
+
+    cmake .. \
+          -DKDU_INCLUDE_DIR=~/software/kdu-sdk/v8_5-01908E/managed/all_includes \
+          -DKDU_LIBRARY=~/lib/libkdu_v85R.so \
+          -DKDU_AUX_LIBRARY=~/lib/libkdu_a85R.so
+
+Run make to build OpenEXR including exrkdu
+
+    make
+
+Navigate to bin directory
+
+    cd ~/software/exrkdu/build
+
+Run exrkdu - encode with Kakadu and decode with Kakadu)
+
+    ./exrkdu --ipath ~/Downloads/Tree.exr --epath ~/Downloads/Tree.kdu.exr
+
+Run exrkdu - encode with Kakadu and decode with default decoder (OpenJPH)
+
+    ./exrkdu --ipath ~/Downloads/Tree.exr --epath ~/Downloads/Tree.kdu.exr -d
+

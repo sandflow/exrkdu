@@ -82,7 +82,7 @@ Run make to build OpenEXR including exrkdu
 
 Navigate to bin directory
 
-    cd ~/software/exrkdu/build
+    cd ~/software/exrkdu/build/bin
 
 Run exrkdu - encode test image [Tree.exr](https://openexr.com/en/latest/test_images/ScanLines/Tree.html) with Kakadu HTJ2K and decode with Kakadu HTJ2K
 

@@ -38,7 +38,7 @@ separate license for Kakadu SDK must be obained.
     cd exrkdu
     mkdir build
     cd build
-    cmake -DKDU_LIBRARY=<path to Kakadu SDK library, e.g. libkdu_axxR.so> \
+    cmake -DKDU_LIBRARY=<path to Kakadu SDK library, e.g. libkdu_vxxR.so> \
           -DKDU_AUX_LIBRARY=<path to Kakadu SDK auxilary library, e.g. libkdu_axxR.so> \
           -DKDU_INCLUDE_DIR=<path to Kakadu SDK include headers, e.g. managed/all_includes> \
           ..

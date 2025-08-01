@@ -44,7 +44,7 @@ separate license for Kakadu SDK must be obained.
           ..
     ./bin/exrkdu SPARKS_ACES_00000.exr SPARKS_ACES_00000.j2k.exr
 
-## example commands that build and run `exrkdu` on MacOS
+## Special instructions for MacOS
 
 There are different ways to configure dynamic libraries and locations on MacOS, here is one example:
 

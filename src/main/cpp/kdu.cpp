@@ -34,7 +34,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 
 #include "kdu.h"
-#include "ht_common.h"
+#include "internal_ht_common.h"
 
 #include "kdu_elementary.h"
 #include "kdu_params.h"
@@ -140,9 +140,8 @@ kdu_decompress(
 
     /* read the channel map */
 
-    size_t header_sz;
-    read_header(
-        (uint8_t *)decode->packed_buffer, decode->chunk.packed_size, header_sz, cs_to_file_ch);
+    size_t header_sz = read_header(
+        (uint8_t *)decode->packed_buffer, decode->chunk.packed_size, cs_to_file_ch);
     if (decode->channel_count != cs_to_file_ch.size())
         throw std::runtime_error("Unexpected number of channels");
 

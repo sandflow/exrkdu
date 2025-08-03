@@ -19,7 +19,7 @@ add_subdirectory(ext/openexr)
 
 # build application
 
-add_executable(exrkdu src/main/cpp/main.cpp src/main/cpp/kdu.cpp src/main/cpp/ht_common.cpp)
+add_executable(exrkdu src/main/cpp/main.cpp src/main/cpp/kdu.cpp ext/openexr/src/lib/OpenEXRCore/internal_ht_common.cpp)
 target_include_directories(exrkdu PRIVATE ${KDU_INCLUDE_DIR})
 target_include_directories(exrkdu PRIVATE ext/cxxopts)
 target_link_libraries(exrkdu OpenEXRCore ${KDU_LIBRARY} ${KDU_AUX_LIBRARY})
